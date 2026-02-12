@@ -39,14 +39,13 @@ This project is built iteratively. I’m documenting prototypes, failure modes, 
 
 **Validation Test: Bach Invention in C Major (BWV 772)**
 **Expected tempo:** ~72–80 BPM (quarter note)
-**Observed output:** avg_bpm ≈ 140.53 BPM :contentReference[oaicite:1]{index=1}
+**Observed output:** avg_bpm ≈ 140.53 BPM 
 
 **Key observation:**
 - The tempo curve was very stable around ~139.67 BPM for most of the clip :contentReference[oaicite:2]{index=2}.
 - This indicates the algorithm is consistently tracking a *subdivision* (double-time), not randomly failing.
 
 **Conclusion:**
-- This is not “off by a bit.” It’s a known beat-tracking failure mode for solo piano:
   - beat detector often locks onto subdivisions (eighth-note pulse instead of quarter-note pulse),
   - especially with legato articulation and weak percussive transients.
 
