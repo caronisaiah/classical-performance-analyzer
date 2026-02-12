@@ -2,8 +2,8 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import uuid
-import time
 
+from analysis import analyze_tempo
 from models import JobCreateResponse, JobResult
 import storage
 
@@ -41,29 +41,36 @@ async def upload_audio(file: UploadFile = File(...)):
 
     storage.write_status(job_id, "processing")
 
-    # Dummy analysis for milestone 1 (replace later with real extraction)
-    time.sleep(0.2)
+    try:
+        tempo_out = analyze_tempo(str(audio_path))
 
-    duration_sec = 60.0
-    tempo_curve = [{"t": float(t), "bpm": 72.0 + (t % 10) * 0.5} for t in range(0, 60)]
-    loudness_curve = [{"t": float(t), "rms": 0.01 + (t % 12) * 0.0008} for t in range(0, 60)]
+        # Placeholder for now (we’ll add RMS loudness next)
+        loudness_curve = []
 
-    result = {
-        "job_id": job_id,
-        "duration_sec": duration_sec,
-        "tempo_curve": tempo_curve,
-        "loudness_curve": loudness_curve,
-        "events": [
-            {"t_start": 12.0, "t_end": 18.0, "type": "tempo_instability", "severity": 0.6},
-            {"t_start": 40.0, "t_end": 44.0, "type": "dynamic_peak", "severity": 0.8},
-        ],
-        "summary": {"avg_bpm": 74.0, "bpm_variance": 9.8, "dynamic_range_proxy": 0.01},
-        "audio_filename": audio_path.name,
-    }
+        result = {
+            "job_id": job_id,
+            "duration_sec": tempo_out["duration_sec"],
+            "tempo_curve": tempo_out["tempo_curve"],
+            "loudness_curve": loudness_curve,
+            "tempo_interpretations": tempo_out["tempo_interpretations"],
+            "events": tempo_out["events"],
+            "summary": {
+                "avg_bpm": tempo_out["summary"]["avg_bpm"],
+                "bpm_variance": tempo_out["summary"]["bpm_variance"],
+                "tempo_stability_cv": tempo_out["summary"]["tempo_stability_cv"],
+                "recommended_bpm": tempo_out["tempo_interpretations"]["recommended_bpm"],
+                "recommended_label": tempo_out["tempo_interpretations"]["recommended_label"],
+            },
+            "audio_filename": audio_path.name,
+        }
 
-    storage.write_result(job_id, result)
-    storage.write_status(job_id, "done")
-    return JobCreateResponse(job_id=job_id)
+        storage.write_result(job_id, result)
+        storage.write_status(job_id, "done")
+        return JobCreateResponse(job_id=job_id)
+
+    except Exception as e:
+        storage.write_status(job_id, "error", error=str(e))
+        raise
 
 @app.get("/jobs/{job_id}", response_model=JobResult)
 def get_job(job_id: str):
